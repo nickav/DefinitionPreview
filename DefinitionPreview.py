@@ -31,9 +31,6 @@ def debug(*args):
 #
 
 def get_filtered_symbol_locations(window, view, word, cursor):
-    # @Incomplete: filter out locs under cursor!
-    #print("cursor: ", view.rowcol(cursor.a))
-
     syntax_name = view.syntax().name
     return list(filter(lambda it: it.syntax == syntax_name, window.symbol_locations(word, type=sublime.SYMBOL_TYPE_DEFINITION)))
 
@@ -132,18 +129,23 @@ def find_nearest_function_parens(text, offset):
 
     return start_index, end_index
 
-def expand_to_symbol(view, scope):
-    if "meta.struct.c" in view.scope_name(scope.a):
-        scope = expand_to_scope(view, scope, "meta.struct.c")
+def expand_to_symbol(view, scope, is_function):
+    debug("expand_to_symbol", is_function)
 
-    if "meta.function." in view.scope_name(scope.a) or "meta.function." in view.scope_name(scope.b):
-        scope = expand_to_scope(view, scope, "meta.function.parameters")
+    if is_function:
+        if "meta.function." in view.scope_name(scope.a) or "meta.function." in view.scope_name(scope.b):
+            scope = expand_to_scope(view, scope, "meta.function.parameters")
 
-        # @Hack: for C we don't get the function scope of the function return type
-        if "source.c" in view.scope_name(scope.a):
-            scope = expand_scope_backwards_until(view, scope, "storage.type.c")
+            # @Hack: for C we don't get the function scope of the function return type
+            scope_name = view.scope_name(scope.a)
+            if "source.c" in scope_name and not "storage.modifier.c" in scope_name:
+                scope = expand_scope_backwards_until(view, scope, "storage.type.c")
+    else:
+        if "meta.struct.c" in view.scope_name(scope.a):
+            scope = expand_to_scope(view, scope, "meta.struct.c")
 
-    # @Incomplete: trim scope to non-whitespace
+        if "meta.union.c" in view.scope_name(scope.a):
+            scope = expand_to_scope(view, scope, "meta.union.c")
 
     return scope
 
@@ -235,11 +237,12 @@ def find_argument_index(text, index):
 
     return text[0:index].count(",")
 
-def normalize_whitespace(html, go_full_bore = False):
+def normalize_whitespace_single_line(html, go_full_bore = False):
     html = html.replace("<br>", " ")
     html = html.replace("&nbsp;", " ")
     html = html.strip(" ")
 
+    # NOTE(nick): function defintion normalizing
     if go_full_bore:
         html = html.replace(" ( ", "(")
         html = html.replace(" (", "(")
@@ -247,6 +250,22 @@ def normalize_whitespace(html, go_full_bore = False):
 
         if html[-1] == "{":
             html = html[0:-1]
+        if html[-1] == ":":
+            html = html[0:-1]
+        if html[-1] == ";":
+            html = html[0:-1]
+
+    html = html.strip(" ")
+    debug("html:", html)
+    return html
+
+def normalize_whitespace_multiline(html, go_full_bore=False):
+    html = html.strip(" ")
+
+    if html.startswith("<br>"):
+        html = html[len("<br>"):]
+    if html.endswith("<br>"):
+        html = html[0:-len("<br>")]
 
     html = html.strip(" ")
     return html
@@ -268,13 +287,17 @@ def build_popup_preview_html(view, locs, cursor = None, scope = None):
             p0 = view.text_point(loc.row - 1, 0)
             p1 = view.text_point(loc.row + 0, 0)
 
+            is_function = loc.kind[0] == sublime.KIND_FUNCTION[0]
+
             region = sublime.Region(p0, p1)
-            symbol_region = expand_to_symbol(view, region)
+            symbol_region = expand_to_symbol(view, region, is_function)
 
             html = view.export_to_html(symbol_region, minihtml=True)
 
-            if loc.kind[0] == sublime.KIND_FUNCTION[0]:
-                html = highlight_function_argument(normalize_whitespace(html, True), arg_index)
+            if is_function:
+                html = highlight_function_argument(normalize_whitespace_single_line(html, True), arg_index)
+            else:
+                html = normalize_whitespace_multiline(html, False)
 
             result += loc_link(loc, html)
 

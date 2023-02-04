@@ -11,7 +11,25 @@ Foo fun_func(Foo a)
 }
 
 
-void foo(Foo a, Foo b);
+typedef float f32;
+
+union Vector2 {
+    struct {
+        f32 x, y;
+    };
+
+    struct {
+        f32 e[2];
+    };
+};
+
+inline f32 dot(Vector2 a, Vector2 b) {
+  return a.x * b.x + a.y * b.y;
+}
+
+
+// @Incomplete: fix me!
+// void foo(Foo a, Foo b);
 
 
 void
@@ -66,6 +84,16 @@ int main(int argc, char const *argv[])
             moo(12)
         );
     );
+
+
+
+    Vector2 x = {4.0, 2.0};
+    Vector2 y = {1.0, 2.0};
+
+
+    dot(x, y);
+
+
 
     return 0;
 }
