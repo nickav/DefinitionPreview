@@ -211,7 +211,7 @@ def highlight_function_argument(html, arg_index):
 
     start_index = html.find("(")
     if start_index >= 0:
-        end_index = start_index
+        end_index = start_index + 1
         while arg_index >= 0:
             start_index = end_index
             end_index = html.find(",", end_index+1)

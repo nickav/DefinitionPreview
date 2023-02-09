@@ -1,6 +1,6 @@
 # Definition Preview
 
-Auto preview function and type definitions in Sublime Text while you work.
+Auto preview function and type definitions in Sublime Text 4 while you work.
 
 No nonsense, no intellisense, it just works (tm) with Sublime Text out of the box.
 
